@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Bowl-O-Rama</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+  </head>
+  <style>
+      .name, .score{
+          font-size: 2em;
+          position:absolute;
+          bottom:1px
+      }
+      .frame{
+          height:100px;
+          border: 1px solid yellow;
+      }
+  </style>
+  <body style="background-color: blue;color:yellow; font-family: 'Luckiest Guy', cursive;min-width: 1000px;">
+    <div class="container">
+        <h1 style="text-align: center;">BOWL-O-RAMA!</h1>
+        <div id="games"></div>
+        <form method="POST" id='new_ball' style="margin-top:20px; display:none">
+            {%csrf_token%}
+            <h5>Enter Ball Score</h5>
+            <div class="form-group">
+                <select id='ball_value' placeholder="enter ball value">
+                    <option>Choose a Score</option>
+                    <option>0</option>
+                    <option>1</option>
+                    <option>2</option>
+                    <option>3</option>
+                    <option>4</option>
+                    <option>5</option>
+                    <option>6</option>
+                    <option>7</option>
+                    <option>8</option>
+                    <option>9</option>
+                    <option>/</option>
+                    <option>x</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <!-- these are populated dynamically when a new game is started -->
+                <select id="name_selectors"></select>
+            </div>        
+            <div class="form-group">
+                <input type="submit" value="Submit New Ball Score">
+            </div>                
+        </form>
+        <form id="new-game" method="POST" style="margin-top:20px" >
+            <h5>New Game</h5>
+            <div class="form-group">
+                <textarea id="names-list" cols="50" rows="2" placeholder="enter comma separated names"></textarea>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="New Game">
+            </div>
+        </form>
+    </div>    
+    
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script  src="https://code.jquery.com/jquery-3.5.1.min.js"  integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="  crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+  </body>
+  <script>
+    //   create the html boiler plate
+    game_html = `
+            <div class="row" style="background-color:blueviolet">
+            <div class="frame col-2 bottom-align-text">
+                <div class="name">__name__</div>
+            </div>`
+    game_frame = `            
+            <div class="col-1 frame">
+                <div class="row justify-content-end" style="position:relative;top:-1px; right:-1px;height:26px">
+                    <div id='__name___ball___i__' class='col-3' style="border:1px solid yellow;"></div> 
+                    <div id='__name___ball___j__' class='col-3' style="border:1px solid yellow"></div>
+                </div>
+                <div id="__name___score___k__" class="score">
+                </div>
+            </div>`
+    tenth_frame = `            
+            <div class="col-1 frame" >
+                <div class="row justify-content-end" style="position:relative;top:-1px; right:-1px;height:26px">
+                    <div id='__name___ball_18' class='col-4' style="border:1px solid yellow; padding:0;margin:0"></div> 
+                    <div id='__name___ball_19' class='col-4' style="border:1px solid yellow;padding:0;margin:0"></div>
+                    <div id='__name___ball_20' class='col-4' style="border:1px solid yellow;padding:0;margin:0"></div>
+                </div>
+                <div id="__name___score_9" class="score">
+                </div>
+            </div>`
+    
+    for (i=0;i<9;i++){
+        this_frame = game_frame.replace(/__i__/g, (2*i));
+        this_frame = this_frame.replace(/__j__/g, (2*i+1));
+        this_frame = this_frame.replace(/__k__/g, (i));
+        game_html+= this_frame;
+    }
+    // the tenth frame has some unique html since it can have three balls
+    game_html+= tenth_frame
+
+    // process new game clicks
+    $('#new-game').on('submit', function(event){
+        event.preventDefault();
+        names = $('#names-list')[0].value.replace(/ /g, '').split(',');
+        // lane number would need to be dynamic in production
+        data = {"names":names,"lane":8};
+        $.ajax({
+            url : "api/initgame",
+            type : "POST",
+            data : JSON.stringify(data), 
+
+            success : function(json) {
+                // clear out any content from previous game
+                $('#games')[0].innerHTML='';
+                $('#names-list')[0].value ='';
+                $("#name_selectors")[0].innerHTML='';
+                $('#new_ball').css('display','block');
+
+                json.forEach(element => {
+                    $('#games').append(game_html.replace(/__name__/g, element.name));
+                    $("#name_selectors").append('<option value='+element.name+'>'+element.name+'</option>');      
+                });     
+            },
+
+            error : function(xhr,errmsg,err) {
+                console.log(xhr.status + ": " + xhr.responseText);
+            }
+        });       
+    });
+
+    // process new balls
+    $('#new_ball').on('submit', function(event){
+        event.preventDefault();
+        name = $('#name_selectors')[0].value;
+        ball_value = $('#ball_value')[0].value;
+        data = {"name":name,"lane":8, "ball_value":ball_value};
+
+        $.ajax({
+            url : "api/newball",
+            type : "POST",
+            data : JSON.stringify(data), 
+
+            success : function(json) {
+                json.forEach(element => {
+                    var ball_count=0;
+                    // update balls
+                    for (var i = 0; i < element.ball_values.length; i++) {
+                        ball = (element.ball_values.charAt(i));
+                        $('#name_ball_i');
+                        $('#'+element.name+'_ball_'+ball_count)[0].innerText=ball;
+                        if (ball.toLowerCase()=='x' && ball_count<18){
+                            ball_count += 1;
+                        }
+                        ball_count += 1;
+                    }
+
+                    // update scores
+                    if(element.frame_scores!=""){
+                        scores = JSON.parse(element.frame_scores);
+                        for (var current_frame = 0; current_frame < scores.length; current_frame++){
+                            $('#'+element.name+'_score_'+current_frame)[0].innerText=scores[current_frame];
+                        }
+                    }    
+                });     
+            },
+
+            error : function(xhr,errmsg,err) {
+                console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
+            }
+        });       
+    });
+  </script>
+</html>
